@@ -80,6 +80,7 @@ class MyBaggingRegressor(BaggingRegressor):
         super(MyBaggingRegressor, self).__init__(
             estimator, n_estimators, estimator_args, cuda, n_jobs
         )
+        self.total_epochs = 0
         for _ in range(self.n_estimators):
             self.estimators_.append(self._make_estimator())
 
@@ -237,6 +238,22 @@ class MyBaggingRegressor(BaggingRegressor):
                         else:
                             scheduler_.step()
 
+        self.total_epochs += epochs
+
+        # evaluate 
+        self.eval()
+        losses = []
+
+        for i in range(self.n_estimators):
+            with torch.no_grad():
+                loss = 0.0
+                for _, elem in enumerate(train_loader[i]):
+                    data, target = io.split_data_target(elem, self.device)
+                    output = _forward([self.estimators_[i]], *data)
+                    loss += self._criterion(output, target) * len(data[0])
+                loss /= len(train_loader[i])
+                losses.append(loss)
+        return {"epoch": self.total_epochs, "loss": torch.mean(losses), "max_loss": torch.max(losses), "min_loss": torch.min(losses)}
 
 def _get_bagging_dataloaders(original_dataloader, n_estimators):
     dataset = original_dataloader.dataset
