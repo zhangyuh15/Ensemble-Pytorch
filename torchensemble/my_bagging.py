@@ -226,14 +226,13 @@ class MyBaggingRegressor(BaggingRegressor):
                 loss /= len(train_loader[i])
                 losses.append(loss.item())
 
-        return {
-            "epoch": self.total_epochs,
-            "loss": sum(losses) / len(losses),
-            "max_loss": max(losses),
-            "min_loss": min(losses),
-        }
+        info_dict = {"epoch": self.total_epochs, "g_model/mean_loss": sum(losses) / len(losses), "g_model/max_loss": max(losses), "g_model/min_loss": min(losses)}
 
 
+        for i, val in enumerate(losses):
+            info_dict["g_model/loss_{}".format(i)] = val
+        return info_dict
+    
 def _get_bagging_dataloaders(original_dataloader, n_estimators):
     dataset = original_dataloader.dataset
     dataloaders = []
