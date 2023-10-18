@@ -81,7 +81,7 @@ class MyBaggingRegressor(BaggingRegressor):
             estimator, n_estimators, estimator_args, cuda, n_jobs
         )
         for _ in range(self.n_estimators):
-            self.estimators.append(self._make_estimator())
+            self.estimators_.append(self._make_estimator())
 
     def forward(self, *x):
         # Average over predictions from all base estimators.
