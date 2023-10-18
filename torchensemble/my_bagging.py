@@ -47,7 +47,6 @@ def _parallel_fit_per_epoch(
         set_module.update_lr(optimizer, cur_lr)
 
     for batch_idx, elem in enumerate(train_loader):
-
         data, target = io.split_data_target(elem, device)
         batch_size = data[0].size(0)
 
@@ -59,10 +58,7 @@ def _parallel_fit_per_epoch(
 
         # Print training status
         if batch_idx % log_interval == 0:
-            msg = (
-                "Estimator: {:03d} | Epoch: {:03d} | Batch: {:03d}"
-                " | Loss: {:.5f}"
-            )
+            msg = "Estimator: {:03d} | Epoch: {:03d} | Batch: {:03d}" " | Loss: {:.5f}"
             print(msg.format(idx, epoch, batch_idx, loss))
 
     return estimator, optimizer, loss
@@ -77,9 +73,7 @@ class MyBaggingRegressor(BaggingRegressor):
         cuda=True,
         n_jobs=None,
     ):
-        super(MyBaggingRegressor, self).__init__(
-            estimator, n_estimators, estimator_args, cuda, n_jobs
-        )
+        super(MyBaggingRegressor, self).__init__(estimator, n_estimators, estimator_args, cuda, n_jobs)
         self.total_epochs = 0
         for _ in range(self.n_estimators):
             self.estimators_.append(self._make_estimator())
@@ -91,7 +85,6 @@ class MyBaggingRegressor(BaggingRegressor):
 
         return pred
 
-
     def fit(
         self,
         train_loader,
@@ -101,7 +94,6 @@ class MyBaggingRegressor(BaggingRegressor):
         save_model=True,
         save_dir=None,
     ):
-
         self._validate_parameters(epochs, log_interval)
         self.n_outputs = self._decide_n_outputs(train_loader)
 
@@ -112,16 +104,10 @@ class MyBaggingRegressor(BaggingRegressor):
 
         optimizers = []
         for i in range(self.n_estimators):
-            optimizers.append(
-                set_module.set_optimizer(
-                    estimators[i], self.optimizer_name, **self.optimizer_args
-                )
-            )
+            optimizers.append(set_module.set_optimizer(estimators[i], self.optimizer_name, **self.optimizer_args))
 
         if self.use_scheduler_:
-            scheduler_ = set_module.set_scheduler(
-                optimizers[0], self.scheduler_name, **self.scheduler_args
-            )
+            scheduler_ = set_module.set_scheduler(optimizers[0], self.scheduler_name, **self.scheduler_args)
 
         # Check the training criterion
         if not hasattr(self, "_criterion"):
@@ -139,13 +125,10 @@ class MyBaggingRegressor(BaggingRegressor):
 
         # Turn train_loader into a list of train_loaders,
         # sampling with replacement
-        train_loader = _get_bagging_dataloaders(
-            train_loader, self.n_estimators
-        )
+        train_loader = _get_bagging_dataloaders(train_loader, self.n_estimators)
 
         # Maintain a pool of workers
         with Parallel(n_jobs=self.n_jobs) as parallel:
-
             # Training loop
             for epoch in range(epochs):
                 self.train()
@@ -175,9 +158,7 @@ class MyBaggingRegressor(BaggingRegressor):
                         self.device,
                         False,
                     )
-                    for idx, (estimator, optimizer, dataloader) in enumerate(
-                        zip(estimators, optimizers, train_loader)
-                    )
+                    for idx, (estimator, optimizer, dataloader) in enumerate(zip(estimators, optimizers, train_loader))
                 )
 
                 estimators, optimizers, losses = [], [], []
@@ -192,9 +173,7 @@ class MyBaggingRegressor(BaggingRegressor):
                     with torch.no_grad():
                         val_loss = 0.0
                         for _, elem in enumerate(test_loader):
-                            data, target = io.split_data_target(
-                                elem, self.device
-                            )
+                            data, target = io.split_data_target(elem, self.device)
                             output = _forward(estimators, *data)
                             val_loss += self._criterion(output, target)
                         val_loss /= len(test_loader)
@@ -206,17 +185,10 @@ class MyBaggingRegressor(BaggingRegressor):
                             if save_model:
                                 io.save(self, save_dir, self.logger)
 
-                        msg = (
-                            "Epoch: {:03d} | Validation Loss:"
-                            " {:.5f} | Historical Best: {:.5f}"
-                        )
-                        self.logger.info(
-                            msg.format(epoch, val_loss, best_loss)
-                        )
+                        msg = "Epoch: {:03d} | Validation Loss:" " {:.5f} | Historical Best: {:.5f}"
+                        self.logger.info(msg.format(epoch, val_loss, best_loss))
                         if self.tb_logger:
-                            self.tb_logger.add_scalar(
-                                "bagging/Validation_Loss", val_loss, epoch
-                            )
+                            self.tb_logger.add_scalar("bagging/Validation_Loss", val_loss, epoch)
                 # No validation
                 else:
                     self.estimators_ = nn.ModuleList()
@@ -240,7 +212,7 @@ class MyBaggingRegressor(BaggingRegressor):
 
         self.total_epochs += epochs
 
-        # evaluate 
+        # evaluate
         self.eval()
         losses = []
 
@@ -249,20 +221,25 @@ class MyBaggingRegressor(BaggingRegressor):
                 loss = 0.0
                 for _, elem in enumerate(train_loader[i]):
                     data, target = io.split_data_target(elem, self.device)
-                    output = _forward([self.estimators_[i]], *data)
+                    output = self.estimators_[i](*data)
                     loss += self._criterion(output, target) * len(data[0])
                 loss /= len(train_loader[i])
-                losses.append(loss)
-        return {"epoch": self.total_epochs, "loss": torch.mean(losses), "max_loss": torch.max(losses), "min_loss": torch.min(losses)}
+                losses.append(loss.item())
+
+        return {
+            "epoch": self.total_epochs,
+            "loss": sum(losses) / len(losses),
+            "max_loss": max(losses),
+            "min_loss": min(losses),
+        }
+
 
 def _get_bagging_dataloaders(original_dataloader, n_estimators):
     dataset = original_dataloader.dataset
     dataloaders = []
     for i in range(n_estimators):
         # sampling with replacement
-        indices = torch.randint(
-            high=len(dataset), size=(len(dataset),), dtype=torch.int64
-        )
+        indices = torch.randint(high=len(dataset), size=(len(dataset),), dtype=torch.int64)
         sub_dataset = torch.utils.data.Subset(dataset, indices)
         dataloader = torch.utils.data.DataLoader(
             sub_dataset,
