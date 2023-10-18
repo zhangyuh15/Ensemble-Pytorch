@@ -6,6 +6,7 @@ from .voting import NeuralForestClassifier
 from .voting import NeuralForestRegressor
 from .bagging import BaggingClassifier
 from .bagging import BaggingRegressor
+from .my_bagging import MyBaggingRegressor
 from .gradient_boosting import GradientBoostingClassifier
 from .gradient_boosting import GradientBoostingRegressor
 from .snapshot_ensemble import SnapshotEnsembleClassifier
@@ -27,6 +28,7 @@ __all__ = [
     "NeuralForestRegressor",
     "BaggingClassifier",
     "BaggingRegressor",
+    "MyBaggingRegressor",
     "GradientBoostingClassifier",
     "GradientBoostingRegressor",
     "SnapshotEnsembleClassifier",
